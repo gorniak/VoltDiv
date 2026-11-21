@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Voltage Divider Optimizer</title>
+    <meta name="description" content="Find optimal standard resistor values (E24, E48, E96, E192, or custom) for a feedback voltage divider in T+B, T1+T2+B (series top), and T+B1||B2 (parallel bottom) topologies.">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 25px;
+            font-weight: 700;
+        }
+
+        h2 {
+            color: #555;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 400;
+        }
+
+        h2 a {
+            color: #555;
+            text-decoration: none;
+        }
+
+        h2 a:hover {
+            color: #333;
+            text-decoration: underline;
+        }
+
+        main {
+            width: 100%;
+            max-width: 1000px;
+            box-sizing: border-box;
+        }
+
+        /* Two-Column Grid Layout matching calc-online */
+        .calc-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .calc-grid {
+                grid-template-columns: 1.15fr 0.85fr;
+            }
+        }
+
+        /* Card Container */
+        .card {
+            background-color: #e8e8e8;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .section-header {
+            font-size: 14px;
+            font-weight: bold;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 6px;
+            margin-bottom: 4px;
+            border-bottom: 1px dashed #cccccc;
+            padding-bottom: 4px;
+        }
+
+        .section-header:first-child {
+            margin-top: 0;
+        }
+
+        /* Mode Selector Tabs */
+        .mode-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            width: 100%;
+        }
+
+        .mode-btn {
+            font-family: Arial, sans-serif;
+            background-color: #d6d6d6;
+            color: #333;
+            padding: 9px 10px;
+            border: 1px solid #b8b8b8;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.92rem;
+            font-weight: 700;
+            text-align: center;
+            transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+            line-height: 1.25;
+        }
+
+        .mode-btn:hover {
+            background-color: #c8c8c8;
+        }
+
+        .mode-btn.active {
+            background-color: #4a4a4a;
+            color: #ffffff;
+            border-color: #333333;
+        }
+
+        .mode-sub {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 400;
+            opacity: 0.85;
+            margin-top: 2px;
+        }
+
+        /* Form Controls */
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            gap: 11px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-container {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        label {
+            font-size: 0.95rem;
+            font-weight: normal;
+            color: #333;
+        }
+
+        input[type="text"],
+        select,
+        textarea {
+            padding: 7px 10px;
+            background-color: #ffffff;
+            border: 1px solid #b0b0b0;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 0.95rem;
+            color: #333;
+            font-family: Arial, sans-serif;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            max-width: 135px;
+            text-align: right;
+        }
+
+        select {
+            width: 100%;
+            max-width: 185px;
+            cursor: pointer;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 62px;
+            resize: vertical;
+            font-family: monospace;
+            font-size: 0.88rem;
+        }
+
+        input[type="text"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #707070;
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
+        }
+
+        input[type="text"]:disabled,
+        input[readonly] {
+            background-color: #f0f0f0;
+            color: #666;
+            border-color: #d0d0d0;
+            cursor: not-allowed;
+        }
+
+        .unit {
+            font-size: 0.95rem;
+            font-weight: normal;
+            color: #555;
+            white-space: nowrap;
+            min-width: 36px;
+            flex-shrink: 0;
+        }
+
+        .custom-resistors-wrap {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            margin-top: 2px;
+        }
+
+        .custom-resistors-wrap.visible {
+            display: flex;
+        }
+
+        .hint {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        /* Buttons */
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        button.action-btn {
+            font-family: Arial, sans-serif;
+            background-color: #b8b8b8;
+            color: #333;
+            padding: 8px 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.92rem;
+            font-weight: 600;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        button.action-btn:hover {
+            background-color: #d0d0d0;
+        }
+
+        button.action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-reset {
+            background-color: #c8c8c8;
+        }
+
+        .btn-reset:hover {
+            background-color: #d8c4c4 !important;
+            color: #990000 !important;
+        }
+
+        @media (min-width: 600px) {
+            .input-group {
+                flex-direction: row;
+                align-items: center;
+                gap: 12px;
+            }
+            .input-group > label {
+                width: 210px;
+                flex-shrink: 0;
+                text-align: right;
+            }
+            .input-container {
+                flex-grow: 1;
+            }
+        }
+
+        /* Equations & Schematic Card */
+        .equations-card {
+            background-color: #f5f5f5;
+            border: 1px solid #d0d0d0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 16px 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .schematic-wrap {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 4px 0;
+        }
+
+        .schematic-wrap svg {
+            max-width: 300px;
+            width: 100%;
+            height: auto;
+        }
+
+        .eq-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            border-top: 1px dashed #cccccc;
+            padding-top: 12px;
+        }
+
+        .eq-item {
+            font-family: 'Cambria Math', 'Times New Roman', Georgia, serif;
+            font-size: 16px;
+            color: #222;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .sym {
+            display: inline-block;
+            white-space: nowrap;
+        }
+
+        .sym sub,
+        .frac sub {
+            font-size: 0.72em;
+            vertical-align: sub;
+            line-height: 0;
+        }
+
+        .frac {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            vertical-align: middle;
+            margin: 0 2px;
+            line-height: 1.15;
+        }
+
+        .frac-num {
+            border-bottom: 1.2px solid #222;
+            padding: 0 4px 2px 4px;
+            font-size: 0.92em;
+        }
+
+        .frac-den {
+            padding: 2px 4px 0 4px;
+            font-size: 0.92em;
+        }
+
+        .paren {
+            font-size: 1.8em;
+            font-weight: 300;
+            line-height: 1;
+        }
+
+        /* Status Box */
+        .status-box {
+            border-radius: 4px;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .status-ok {
+            background-color: #e6f7ed;
+            border: 1px solid #a3e2bb;
+            color: #1e7e43;
+        }
+
+        .status-warn {
+            background-color: #fff9e6;
+            border: 1px solid #f0d78c;
+            color: #8a6400;
+        }
+
+        .status-err {
+            background-color: #fdeaea;
+            border: 1px solid #e6a8a8;
+            color: #990000;
+        }
+
+        .status-info {
+            background-color: #f0f0f0;
+            border: 1px solid #c0c0c0;
+            color: #555;
+        }
+
+        /* Results Card & Table */
+        .results-card {
+            background-color: #e8e8e8;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            box-sizing: border-box;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .results-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .results-controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.88rem;
+            color: #444;
+        }
+
+        .results-controls select {
+            width: auto;
+            max-width: none;
+            padding: 5px 8px;
+            font-size: 0.88rem;
+        }
+
+        .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            background-color: #ffffff;
+            border: 1px solid #c0c0c0;
+            border-radius: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+            white-space: nowrap;
+        }
+
+        thead th {
+            background-color: #d8d8d8;
+            color: #333;
+            font-weight: 700;
+            text-align: right;
+            padding: 9px 12px;
+            border-bottom: 1px solid #b8b8b8;
+            cursor: pointer;
+            user-select: none;
+            position: sticky;
+            top: 0;
+        }
+
+        thead th:first-child {
+            text-align: center;
+            cursor: default;
+            width: 38px;
+        }
+
+        thead th:hover:not(:first-child) {
+            background-color: #cccccc;
+        }
+
+        thead th .sort-arrow {
+            font-size: 0.75rem;
+            margin-left: 4px;
+            color: #555;
+        }
+
+        tbody td {
+            padding: 8px 12px;
+            text-align: right;
+            border-bottom: 1px solid #ebebeb;
+            color: #333;
+            font-variant-numeric: tabular-nums;
+        }
+
+        tbody td:first-child {
+            text-align: center;
+            color: #777;
+            font-size: 0.84rem;
+        }
+
+        tbody tr {
+            cursor: pointer;
+            transition: background-color 0.12s;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f7f7f7;
+        }
+
+        tbody tr:hover {
+            background-color: #eaf2f8;
+        }
+
+        tbody tr.selected-row {
+            background-color: #d9ecff !important;
+            font-weight: 600;
+        }
+
+        .err-zero {
+            color: #1e7e43;
+            font-weight: 700;
+        }
+
+        .err-pos {
+            color: #8a4b00;
+        }
+
+        .err-neg {
+            color: #1a5276;
+        }
+
+        .empty-state {
+            padding: 28px 16px;
+            text-align: center;
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        /* Footer Links styling matching calc-online */
+        .footer-links {
+            text-align: center;
+            width: 100%;
+            font-size: 14px;
+            color: #555;
+            margin-top: auto;
+            padding-top: 2.5rem;
+            padding-bottom: 1rem;
+        }
+
+        .footer-links p {
+            margin: 6px 0;
+        }
+
+        .footer-links a {
+            color: #555;
+            text-decoration: none;
+        }
+
+        .footer-links a:hover {
+            color: #333;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 599px) {
+            body {
+                padding: 12px;
+            }
+            .card, .results-card {
+                padding: 14px;
+            }
+            .input-group {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+            }
+            .input-group > label {
+                font-size: 0.9rem;
+                text-align: left;
+                flex-grow: 1;
+            }
+            .input-container {
+                width: auto;
+                justify-content: flex-end;
+                flex-shrink: 0;
+                gap: 6px;
+            }
+            input[type="text"] {
+                max-width: 105px;
+                padding: 6px 8px;
+                font-size: 0.9rem;
+            }
+            select {
+                max-width: 145px;
+                padding: 6px 8px;
+                font-size: 0.9rem;
+            }
+            .mode-btn {
+                padding: 8px 4px;
+                font-size: 0.84rem;
+            }
+            .mode-sub {
+                font-size: 0.68rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Feedback Voltage Divider Optimizer</h1>
+        <h2>Created by <a href="https://gorniak.eu/" target="_blank" rel="noopener">Radosław Górniak</a></h2>
+    </header>
+
+    <main>
+        <div class="calc-grid">
+            <form class="card" onsubmit="event.preventDefault();">
+                <div class="form-row">
+                    <div class="section-header">Topology Mode</div>
+                    <div class="mode-selector" role="tablist" aria-label="Divider Topology">
+                        <button type="button" class="mode-btn active" data-mode="TB" role="tab" aria-selected="true">
+                            T + B
+                            <span class="mode-sub">Top + Bottom</span>
+                        </button>
+                        <button type="button" class="mode-btn" data-mode="T1T2B" role="tab" aria-selected="false">
+                            T1 + T2 + B
+                            <span class="mode-sub">2 Top in series + Bottom</span>
+                        </button>
+                        <button type="button" class="mode-btn" data-mode="TB1B2" role="tab" aria-selected="false">
+                            T + B1 || B2
+                            <span class="mode-sub">Top + 2 Bottom parallel</span>
+                        </button>
+                    </div>
+
+                    <div class="section-header">Voltage Specifications</div>
+
+                    <div class="input-group">
+                        <label for="vout">Required Output <i>V<sub>OUT</sub></i> =</label>
+                        <div class="input-container">
+                            <input type="text" id="vout" value="1.1" inputmode="decimal" placeholder="1.1">
+                            <span class="unit">V</span>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="vref">Reference Voltage <i>V<sub>REF</sub></i> =</label>
+                        <div class="input-container">
+                            <input type="text" id="vref" value="0.6" inputmode="decimal" placeholder="0.6">
+                            <span class="unit">V</span>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="maxerr">Max Output Error &Delta;<i>V</i> =</label>
+                        <div class="input-container">
+                            <input type="text" id="maxerr" value="0.1" inputmode="decimal" placeholder="0.1">
+                            <span class="unit">V</span>
+                        </div>
+                    </div>
+
+                    <div class="section-header">Resistor Constraints</div>
+
+                    <div class="input-group">
+                        <label for="series">Resistor Series =</label>
+                        <div class="input-container">
+                            <select id="series">
+                                <option value="E24">E24 (5%)</option>
+                                <option value="E48">E48 (2%)</option>
+                                <option value="E96">E96 (1%)</option>
+                                <option value="E24_E48">E24 + E48</option>
+                                <option value="E24_E96" selected>E24 + E96</option>
+                                <option value="E192">E192 (0.5%)</option>
+                                <option value="CUSTOM">Custom List</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="custom-resistors-wrap" id="custom-wrap">
+                        <textarea id="custom-values" placeholder="e.g. 1k, 2.2k, 4.7k, 10k, 22k, 47k, 100k">1k, 1.5k, 2.2k, 3.3k, 4.7k, 6.8k, 10k, 15k, 22k, 33k, 47k, 68k, 100k</textarea>
+                        <span class="hint">Comma, semicolon, or space separated values (supports R, k, M suffixes).</span>
+                    </div>
+
+                    <div class="input-group" id="rmin-group">
+                        <label for="rmin">Min Resistance <i>R<sub>min</sub></i> =</label>
+                        <div class="input-container">
+                            <input type="text" id="rmin" value="1k" placeholder="1k">
+                            <span class="unit">&Omega;</span>
+                        </div>
+                    </div>
+
+                    <div class="input-group" id="rmax-group">
+                        <label for="rmax">Max Resistance <i>R<sub>max</sub></i> =</label>
+                        <div class="input-container">
+                            <input type="text" id="rmax" value="100k" placeholder="100k">
+                            <span class="unit">&Omega;</span>
+                        </div>
+                    </div>
+
+                    <div class="btn-row">
+                        <button type="button" class="action-btn btn-reset" id="btn-reset">Reset Defaults</button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="equations-card">
+                <div class="schematic-wrap" id="schematic-wrap"></div>
+                <div class="eq-list" id="eq-list"></div>
+                <div class="status-box status-info" id="status-box">Calculating...</div>
+            </div>
+        </div>
+
+        <section class="results-card">
+            <div class="results-toolbar">
+                <div class="section-header" style="margin: 0; border-bottom: none; padding-bottom: 0;">Optimal Resistor Combinations</div>
+                <div class="results-controls">
+                    <label for="row-limit">Show:</label>
+                    <select id="row-limit">
+                        <option value="50">Top 50</option>
+                        <option value="100" selected>Top 100</option>
+                        <option value="250">Top 250</option>
+                        <option value="500">Top 500</option>
+                        <option value="0">All</option>
+                    </select>
+                    <button type="button" class="action-btn" id="btn-csv">Export CSV</button>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table id="results-table">
+                    <thead id="results-thead"></thead>
+                    <tbody id="results-tbody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer-links">
+        <p>Share link <a href="#" id="copy-share-link" style="text-decoration: none;">(copy)</a>: <a href="" id="share-link">Generating link...</a></p>
+        <p><a href="https://github.com/gorniak/VoltDiv" target="_blank" rel="noopener">Source on GitHub</a>. Optimizer script is available under <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener">MIT License</a>.</p>
+        <p>If not specified otherwise, all files and all texts are available under <a
+            href="https://creativecommons.org/licenses/by-sa/4.0/deed.en" target="_blank" rel="noopener">Creative Commons Attribution-ShareAlike 4.0
+            International (CC BY-SA 4.0)</a> license.</p>
+    </footer>
+
+    <script>
+        "use strict";
+
+        // Standard IEC 60063 resistor decade tables (base 100..999)
+        const SERIES_DATA = {
+            E24: [100, 110, 120, 130, 150, 160, 180, 200, 220, 240, 270, 300, 330, 360, 390, 430, 470, 510, 560, 620, 680, 750, 820, 910],
+            E48: [100, 105, 110, 115, 121, 127, 133, 140, 147, 154, 162, 169, 178, 187, 196, 205, 215, 226, 237, 249, 261, 274, 287, 301, 316, 332, 348, 365, 383, 402, 422, 442, 464, 487, 511, 536, 562, 590, 619, 649, 681, 715, 750, 787, 825, 866, 909, 953],
+            E96: [100, 102, 105, 107, 110, 113, 115, 118, 121, 124, 127, 130, 133, 137, 140, 143, 147, 150, 154, 158, 162, 165, 169, 174, 178, 182, 187, 191, 196, 200, 205, 210, 215, 221, 226, 232, 237, 243, 249, 255, 261, 267, 274, 280, 287, 294, 301, 309, 316, 324, 332, 340, 348, 357, 365, 374, 383, 392, 402, 412, 422, 432, 442, 453, 464, 475, 487, 499, 511, 523, 536, 549, 562, 576, 590, 604, 619, 634, 649, 665, 681, 698, 715, 732, 750, 768, 787, 806, 825, 845, 866, 887, 909, 931, 953, 976],
+            E192: [100, 101, 102, 104, 105, 106, 107, 109, 110, 111, 113, 114, 115, 117, 118, 120, 121, 123, 124, 126, 127, 129, 130, 132, 133, 135, 137, 138, 140, 142, 143, 145, 147, 149, 150, 152, 154, 156, 158, 160, 162, 164, 165, 167, 169, 172, 174, 176, 178, 180, 182, 184, 187, 189, 191, 193, 196, 198, 200, 203, 205, 208, 210, 213, 215, 218, 221, 223, 226, 229, 232, 234, 237, 240, 243, 246, 249, 252, 255, 258, 261, 264, 267, 271, 274, 277, 280, 284, 287, 291, 294, 298, 301, 305, 309, 312, 316, 320, 324, 328, 332, 336, 340, 344, 348, 352, 357, 361, 365, 370, 374, 379, 383, 388, 392, 397, 402, 407, 412, 417, 422, 427, 432, 437, 442, 448, 453, 459, 464, 470, 475, 481, 487, 493, 499, 505, 511, 517, 523, 530, 536, 542, 549, 556, 562, 569, 576, 583, 590, 597, 604, 612, 619, 626, 634, 642, 649, 657, 665, 673, 681, 690, 698, 706, 715, 723, 732, 741, 750, 759, 768, 777, 787, 796, 806, 816, 825, 835, 845, 856, 866, 876, 887, 898, 909, 920, 931, 942, 953, 965, 976, 988]
+        };
+
+        const DEFAULTS = {
+            mode: 'TB',
+            vout: '1.1',
+            vref: '0.6',
+            maxerr: '0.1',
+            series: 'E24_E96',
+            rmin: '1k',
+            rmax: '100k'
+        };
+
+        let currentMode = DEFAULTS.mode;
+        let lastResults = [];
+        let selectedIndex = -1;
+        let sortState = { key: 'absErr', dir: 1 };
+
+        // Parse engineering value (e.g. "1.1", "10k", "4.7M", "100m", "2k2", "4R7")
+        function parseEngValue(str) {
+            if (typeof str !== 'string') return NaN;
+            let s = str.trim().replace(',', '.').replace(/Ω|ohm|ohms/gi, '').trim();
+            if (!s) return NaN;
+
+            // Support European R/k/M notation like 4R7, 2k2, 1M5
+            const euMatch = s.match(/^(\d+)([rRkKmMgG])(\d+)$/);
+            if (euMatch) {
+                const num = parseFloat(euMatch[1] + '.' + euMatch[3]);
+                const suf = euMatch[2];
+                if (suf === 'r' || suf === 'R') return num;
+                if (suf === 'k' || suf === 'K') return num * 1e3;
+                if (suf === 'm') return num * 1e-3;
+                if (suf === 'M') return num * 1e6;
+                if (suf === 'g' || suf === 'G') return num * 1e9;
+            }
+
+            const match = s.match(/^([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*([a-zA-Zµμ]*)$/);
+            if (!match) return NaN;
+
+            const num = parseFloat(match[1]);
+            const suf = match[2];
+            if (!suf || suf === 'r' || suf === 'R') return num;
+            if (suf === 'k' || suf === 'K') return num * 1e3;
+            if (suf === 'M' || suf.toLowerCase() === 'meg') return num * 1e6;
+            if (suf === 'g' || suf === 'G') return num * 1e9;
+            if (suf === 'm') return num * 1e-3;
+            if (suf === 'u' || suf === 'µ' || suf === 'μ') return num * 1e-6;
+            if (suf === 'n') return num * 1e-9;
+            if (suf === 'p') return num * 1e-12;
+            return NaN;
+        }
+
+        function formatResistance(ohms) {
+            if (!isFinite(ohms)) return '—';
+            if (ohms >= 1e6) return parseFloat((ohms / 1e6).toPrecision(4)) + ' MΩ';
+            if (ohms >= 1e3) return parseFloat((ohms / 1e3).toPrecision(4)) + ' kΩ';
+            return parseFloat(ohms.toPrecision(4)) + ' Ω';
+        }
+
+        function formatNum(val, decimals = 4) {
+            if (!isFinite(val)) return '—';
+            return Number(val.toFixed(decimals)).toString();
+        }
+
+        function getSeriesBase(seriesKey) {
+            if (seriesKey === 'E24_E48') {
+                return Array.from(new Set([...SERIES_DATA.E24, ...SERIES_DATA.E48])).sort((a, b) => a - b);
+            }
+            if (seriesKey === 'E24_E96') {
+                return Array.from(new Set([...SERIES_DATA.E24, ...SERIES_DATA.E96])).sort((a, b) => a - b);
+            }
+            return SERIES_DATA[seriesKey] || SERIES_DATA.E24_E96;
+        }
+
+        function getCandidateResistors(seriesKey, rMin, rMax) {
+            if (seriesKey === 'CUSTOM') {
+                const raw = document.getElementById('custom-values').value;
+                const tokens = raw.split(/[\s,;]+/).filter(Boolean);
+                const set = new Set();
+                for (const tok of tokens) {
+                    const val = parseEngValue(tok);
+                    if (isFinite(val) && val > 0) {
+                        set.add(Number(val.toPrecision(6)));
+                    }
+                }
+                return Array.from(set).sort((a, b) => a - b);
+            }
+
+            const base = getSeriesBase(seriesKey);
+            const values = [];
+            const minDec = Math.floor(Math.log10(rMin)) - 2;
+            const maxDec = Math.ceil(Math.log10(rMax));
+            for (let exp = Math.max(-4, minDec); exp <= Math.min(7, maxDec); exp++) {
+                const mult = Math.pow(10, exp);
+                for (let i = 0; i < base.length; i++) {
+                    const r = Number((base[i] * mult).toPrecision(6));
+                    if (r >= rMin * (1 - 1e-9) && r <= rMax * (1 + 1e-9)) {
+                        values.push(r);
+                    }
+                }
+            }
+            // Deduplicate & sort
+            return Array.from(new Set(values)).sort((a, b) => a - b);
+        }
+
+        // Binary search: index of first element >= target
+        function lowerBound(arr, target) {
+            let lo = 0, hi = arr.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >>> 1;
+                if (arr[mid] < target) lo = mid + 1;
+                else hi = mid;
+            }
+            return lo;
+        }
+
+        function buildResultRow(mode, rList, rTeq, rBeq, vref, voutTarget) {
+            const voutActual = vref * (1 + rTeq / rBeq);
+            const errV = voutActual - voutTarget;
+            const absErr = Math.abs(errV);
+            const errPct = (errV / voutTarget) * 100;
+            const rTotal = rTeq + rBeq;
+            const currentUa = (voutActual / rTotal) * 1e6;
+            const powerMw = ((voutActual * voutActual) / rTotal) * 1e3;
+
+            return {
+                mode,
+                r1: rList[0],
+                r2: rList[1],
+                r3: rList.length > 2 ? rList[2] : null,
+                rTeq,
+                rBeq,
+                rTotal,
+                vout: voutActual,
+                errV,
+                absErr,
+                errPct,
+                currentUa,
+                powerMw
+            };
+        }
+
+        function solveTB(values, voutTarget, vref, maxErr) {
+            const ratio = voutTarget / vref - 1;
+            const results = [];
+            const seen = new Set();
+            const n = values.length;
+
+            for (let i = 0; i < n; i++) {
+                const rB = values[i];
+                const rTIdeal = rB * ratio;
+                const idx = lowerBound(values, rTIdeal);
+
+                const candIndices = [];
+                if (idx < n) candIndices.push(idx);
+                if (idx > 0) candIndices.push(idx - 1);
+
+                for (const ci of candIndices) {
+                    const rT = values[ci];
+                    const key = rT + '|' + rB;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+
+                    const row = buildResultRow('TB', [rT, rB], rT, rB, vref, voutTarget);
+                    if (row.absErr <= maxErr + 1e-12) {
+                        results.push(row);
+                    }
+                }
+            }
+            return results;
+        }
+
+        function solveT1T2B(values, voutTarget, vref, maxErr) {
+            const ratio = voutTarget / vref - 1;
+            const results = [];
+            const seen = new Set();
+            const n = values.length;
+
+            for (let b = 0; b < n; b++) {
+                const rB = values[b];
+                const targetSum = rB * ratio;
+                let right = n - 1;
+
+                for (let left = 0; left < n; left++) {
+                    const r1 = values[left];
+                    while (right > left && r1 + values[right] > targetSum) {
+                        right--;
+                    }
+
+                    // Candidate 1: right (>= left)
+                    if (right >= left) {
+                        const r2 = values[right];
+                        const key = r1 + '|' + r2 + '|' + rB;
+                        if (!seen.has(key)) {
+                            seen.add(key);
+                            const row = buildResultRow('T1T2B', [r1, r2, rB], r1 + r2, rB, vref, voutTarget);
+                            if (row.absErr <= maxErr + 1e-12) results.push(row);
+                        }
+                    }
+                    // Candidate 2: right + 1 (if within bounds and >= left)
+                    if (right + 1 < n && right + 1 >= left) {
+                        const r2 = values[right + 1];
+                        const key = r1 + '|' + r2 + '|' + rB;
+                        if (!seen.has(key)) {
+                            seen.add(key);
+                            const row = buildResultRow('T1T2B', [r1, r2, rB], r1 + r2, rB, vref, voutTarget);
+                            if (row.absErr <= maxErr + 1e-12) results.push(row);
+                        }
+                    }
+                    if (r1 > targetSum && right === left) break;
+                }
+            }
+            return results;
+        }
+
+        function solveTB1B2(values, voutTarget, vref, maxErr) {
+            const ratio = voutTarget / vref - 1;
+            const results = [];
+            const seen = new Set();
+            const n = values.length;
+
+            // Conductances sorted ascending (corresponding to values in reverse order)
+            const rDesc = values.slice().reverse();
+            const gAsc = rDesc.map(r => 1 / r);
+
+            for (let t = 0; t < n; t++) {
+                const rT = values[t];
+                const gTarget = ratio / rT;
+                let right = n - 1;
+
+                for (let left = 0; left < n; left++) {
+                    const g1 = gAsc[left];
+                    while (right > left && g1 + gAsc[right] > gTarget) {
+                        right--;
+                    }
+
+                    const tryPair = (idx2) => {
+                        if (idx2 < left || idx2 >= n) return;
+                        // Canonical order: rB1 <= rB2
+                        const rA = rDesc[left];
+                        const rB = rDesc[idx2];
+                        const rB1 = rA <= rB ? rA : rB;
+                        const rB2 = rA <= rB ? rB : rA;
+                        const key = rT + '|' + rB1 + '|' + rB2;
+                        if (seen.has(key)) return;
+                        seen.add(key);
+
+                        const rBeq = (rB1 * rB2) / (rB1 + rB2);
+                        const row = buildResultRow('TB1B2', [rT, rB1, rB2], rT, rBeq, vref, voutTarget);
+                        if (row.absErr <= maxErr + 1e-12) results.push(row);
+                    };
+
+                    tryPair(right);
+                    tryPair(right + 1);
+                    if (g1 > gTarget && right === left) break;
+                }
+            }
+            return results;
+        }
+
+        function svgRLabel(sub, val) {
+            const valPart = val !== null ? ` = ${formatResistance(val)}` : '';
+            return `R<tspan dy="3" font-size="9">${sub}</tspan><tspan dy="-3">${valPart}</tspan>`;
+        }
+
+        function renderSchematicAndEquations(mode, selectedRow) {
+            const wrap = document.getElementById('schematic-wrap');
+            const eqList = document.getElementById('eq-list');
+
+            const voutSvg = 'V<tspan dy="3" font-size="9">OUT</tspan>';
+            const vrefSvg = 'V<tspan dy="3" font-size="9">REF</tspan>';
+
+            // Resistor body geometry from Resistor.kicad_sym: 7.112mm x 2.032mm (3.5:1) -> 12x42 px, sharp corners, fill="none"
+            if (mode === 'TB') {
+                const rtLabel = svgRLabel('T', selectedRow ? selectedRow.r1 : null);
+                const rbLabel = svgRLabel('B', selectedRow ? selectedRow.r2 : null);
+                wrap.innerHTML = `
+                    <svg viewBox="0 0 260 220" fill="none" stroke="#333" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="T + B Voltage Divider Schematic">
+                        <!-- VOUT node -->
+                        <circle cx="100" cy="18" r="3.5" fill="#fff"/>
+                        <text x="113" y="22" text-anchor="start" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="13" font-weight="bold">${voutSvg}</text>
+                        <line x1="100" y1="21.5" x2="100" y2="42"/>
+                        <!-- RT (12x42, Resistor.kicad_sym) -->
+                        <rect x="94" y="42" width="12" height="42" fill="none"/>
+                        <text x="114" y="67" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="12" font-weight="bold">${rtLabel}</text>
+                        <!-- Mid node & FB branch -->
+                        <line x1="100" y1="84" x2="100" y2="122"/>
+                        <circle cx="100" cy="103" r="3" fill="#333"/>
+                        <line x1="100" y1="103" x2="165" y2="103"/>
+                        <circle cx="168.5" cy="103" r="3.5" fill="#fff"/>
+                        <text x="178" y="107" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="13" font-weight="bold">${vrefSvg}</text>
+                        <!-- RB (12x42, Resistor.kicad_sym) -->
+                        <rect x="94" y="122" width="12" height="42" fill="none"/>
+                        <text x="114" y="147" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="12" font-weight="bold">${rbLabel}</text>
+                        <!-- GND -->
+                        <line x1="100" y1="164" x2="100" y2="190"/>
+                        <line x1="86" y1="190" x2="114" y2="190"/>
+                        <line x1="91" y1="196" x2="109" y2="196"/>
+                        <line x1="96" y1="202" x2="104" y2="202"/>
+                    </svg>`;
+
+                eqList.innerHTML = `
+                    <div class="eq-item">
+                        <span class="sym"><i>V</i><sub>OUT</sub></span>
+                        <span>=</span>
+                        <span class="sym"><i>V</i><sub>REF</sub></span>
+                        <span>&middot;</span>
+                        <span class="paren">(</span><span>1 +</span>
+                        <span class="frac"><span class="frac-num"><span class="sym"><i>R</i><sub>T</sub></span></span><span class="frac-den"><span class="sym"><i>R</i><sub>B</sub></span></span></span>
+                        <span class="paren">)</span>
+                    </div>
+                    <div class="eq-item">
+                        <span class="sym"><i>I</i></span>
+                        <span>=</span>
+                        <span class="frac"><span class="frac-num"><span class="sym"><i>V</i><sub>OUT</sub></span></span><span class="frac-den"><span class="sym"><i>R</i><sub>T</sub></span> + <span class="sym"><i>R</i><sub>B</sub></span></span></span>
+                    </div>`;
+            } else if (mode === 'T1T2B') {
+                const rt1Label = svgRLabel('T1', selectedRow ? selectedRow.r1 : null);
+                const rt2Label = svgRLabel('T2', selectedRow ? selectedRow.r2 : null);
+                const rbLabel = svgRLabel('B', selectedRow ? selectedRow.r3 : null);
+                wrap.innerHTML = `
+                    <svg viewBox="0 0 265 268" fill="none" stroke="#333" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="T1 + T2 + B Voltage Divider Schematic">
+                        <!-- VOUT node -->
+                        <circle cx="100" cy="16" r="3.5" fill="#fff"/>
+                        <text x="113" y="20" text-anchor="start" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="13" font-weight="bold">${voutSvg}</text>
+                        <line x1="100" y1="19.5" x2="100" y2="36"/>
+                        <!-- RT1 (12x42, Resistor.kicad_sym) -->
+                        <rect x="94" y="36" width="12" height="42" fill="none"/>
+                        <text x="114" y="61" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="12" font-weight="bold">${rt1Label}</text>
+                        <line x1="100" y1="78" x2="100" y2="96"/>
+                        <!-- RT2 (12x42, Resistor.kicad_sym) -->
+                        <rect x="94" y="96" width="12" height="42" fill="none"/>
+                        <text x="114" y="121" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="12" font-weight="bold">${rt2Label}</text>
+                        <!-- Mid node & FB branch -->
+                        <line x1="100" y1="138" x2="100" y2="174"/>
+                        <circle cx="100" cy="156" r="3" fill="#333"/>
+                        <line x1="100" y1="156" x2="165" y2="156"/>
+                        <circle cx="168.5" cy="156" r="3.5" fill="#fff"/>
+                        <text x="178" y="160" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="13" font-weight="bold">${vrefSvg}</text>
+                        <!-- RB (12x42, Resistor.kicad_sym) -->
+                        <rect x="94" y="174" width="12" height="42" fill="none"/>
+                        <text x="114" y="199" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="12" font-weight="bold">${rbLabel}</text>
+                        <!-- GND -->
+                        <line x1="100" y1="216" x2="100" y2="240"/>
+                        <line x1="86" y1="240" x2="114" y2="240"/>
+                        <line x1="91" y1="246" x2="109" y2="246"/>
+                        <line x1="96" y1="252" x2="104" y2="252"/>
+                    </svg>`;
+
+                eqList.innerHTML = `
+                    <div class="eq-item">
+                        <span class="sym"><i>V</i><sub>OUT</sub></span>
+                        <span>=</span>
+                        <span class="sym"><i>V</i><sub>REF</sub></span>
+                        <span>&middot;</span>
+                        <span class="paren">(</span><span>1 +</span>
+                        <span class="frac"><span class="frac-num"><span class="sym"><i>R</i><sub>T1</sub></span> + <span class="sym"><i>R</i><sub>T2</sub></span></span><span class="frac-den"><span class="sym"><i>R</i><sub>B</sub></span></span></span>
+                        <span class="paren">)</span>
+                    </div>
+                    <div class="eq-item">
+                        <span class="sym"><i>I</i></span>
+                        <span>=</span>
+                        <span class="frac"><span class="frac-num"><span class="sym"><i>V</i><sub>OUT</sub></span></span><span class="frac-den"><span class="sym"><i>R</i><sub>T1</sub></span> + <span class="sym"><i>R</i><sub>T2</sub></span> + <span class="sym"><i>R</i><sub>B</sub></span></span></span>
+                    </div>`;
+            } else {
+                const rtLabel = svgRLabel('T', selectedRow ? selectedRow.r1 : null);
+                const rb1Label = svgRLabel('B1', selectedRow ? selectedRow.r2 : null);
+                const rb2Label = svgRLabel('B2', selectedRow ? selectedRow.r3 : null);
+                wrap.innerHTML = `
+                    <svg viewBox="0 0 300 232" fill="none" stroke="#333" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="T + B1 || B2 Voltage Divider Schematic">
+                        <!-- VOUT node -->
+                        <circle cx="150" cy="18" r="3.5" fill="#fff"/>
+                        <text x="163" y="22" text-anchor="start" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="13" font-weight="bold">${voutSvg}</text>
+                        <line x1="150" y1="21.5" x2="150" y2="40"/>
+                        <!-- RT (12x42, Resistor.kicad_sym) -->
+                        <rect x="144" y="40" width="12" height="42" fill="none"/>
+                        <text x="164" y="65" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="12" font-weight="bold">${rtLabel}</text>
+                        <!-- Mid node & FB branch -->
+                        <line x1="150" y1="82" x2="150" y2="116"/>
+                        <circle cx="150" cy="99" r="3" fill="#333"/>
+                        <line x1="150" y1="99" x2="218" y2="99"/>
+                        <circle cx="221.5" cy="99" r="3.5" fill="#fff"/>
+                        <text x="231" y="103" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="13" font-weight="bold">${vrefSvg}</text>
+                        <!-- Parallel split -->
+                        <line x1="122" y1="116" x2="178" y2="116"/>
+                        <circle cx="150" cy="116" r="2.5" fill="#333"/>
+                        <line x1="122" y1="116" x2="122" y2="128"/>
+                        <line x1="178" y1="116" x2="178" y2="128"/>
+                        <!-- RB1 (12x42, Resistor.kicad_sym) -->
+                        <rect x="116" y="128" width="12" height="42" fill="none"/>
+                        <text x="110" y="153" text-anchor="end" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="11.5" font-weight="bold">${rb1Label}</text>
+                        <!-- RB2 (12x42, Resistor.kicad_sym) -->
+                        <rect x="172" y="128" width="12" height="42" fill="none"/>
+                        <text x="190" y="153" text-anchor="start" fill="#333" stroke="none" font-family="Arial, sans-serif" font-size="11.5" font-weight="bold">${rb2Label}</text>
+                        <!-- Parallel rejoin -->
+                        <line x1="122" y1="170" x2="122" y2="184"/>
+                        <line x1="178" y1="170" x2="178" y2="184"/>
+                        <line x1="122" y1="184" x2="178" y2="184"/>
+                        <circle cx="150" cy="184" r="2.5" fill="#333"/>
+                        <!-- GND -->
+                        <line x1="150" y1="184" x2="150" y2="204"/>
+                        <line x1="136" y1="204" x2="164" y2="204"/>
+                        <line x1="141" y1="210" x2="159" y2="210"/>
+                        <line x1="146" y1="216" x2="154" y2="216"/>
+                    </svg>`;
+
+                eqList.innerHTML = `
+                    <div class="eq-item">
+                        <span class="sym"><i>V</i><sub>OUT</sub></span>
+                        <span>=</span>
+                        <span class="sym"><i>V</i><sub>REF</sub></span>
+                        <span>&middot;</span>
+                        <span class="paren">(</span><span>1 +</span>
+                        <span class="frac"><span class="frac-num"><span class="sym"><i>R</i><sub>T</sub></span></span><span class="frac-den"><span class="sym"><i>R</i><sub>B1</sub></span> || <span class="sym"><i>R</i><sub>B2</sub></span></span></span>
+                        <span class="paren">)</span>
+                    </div>
+                    <div class="eq-item">
+                        <span class="sym"><i>R</i><sub>B1</sub></span>
+                        <span>||</span>
+                        <span class="sym"><i>R</i><sub>B2</sub></span>
+                        <span>=</span>
+                        <span class="frac"><span class="frac-num"><span class="sym"><i>R</i><sub>B1</sub></span> &middot; <span class="sym"><i>R</i><sub>B2</sub></span></span><span class="frac-den"><span class="sym"><i>R</i><sub>B1</sub></span> + <span class="sym"><i>R</i><sub>B2</sub></span></span></span>
+                    </div>`;
+            }
+        }
+
+        function setStatus(type, text) {
+            const box = document.getElementById('status-box');
+            box.className = 'status-box status-' + type;
+            box.textContent = text;
+        }
+
+        function sortResults(rows) {
+            const { key, dir } = sortState;
+            rows.sort((a, b) => {
+                const va = a[key];
+                const vb = b[key];
+                if (va !== vb) return (va - vb) * dir;
+                // Secondary tie-breaker: smaller absolute error, then lower total resistance
+                if (a.absErr !== b.absErr) return a.absErr - b.absErr;
+                return a.rTotal - b.rTotal;
+            });
+        }
+
+        function renderTable() {
+            const thead = document.getElementById('results-thead');
+            const tbody = document.getElementById('results-tbody');
+            const btnCsv = document.getElementById('btn-csv');
+
+            const cols = currentMode === 'TB'
+                ? [
+                    { key: null, label: '#' },
+                    { key: 'r1', label: 'R_T' },
+                    { key: 'r2', label: 'R_B' },
+                    { key: 'vout', label: 'V_OUT [V]' },
+                    { key: 'absErr', label: 'Error [mV]' },
+                    { key: 'errPct', label: 'Error [%]' },
+                    { key: 'currentUa', label: 'I [µA]' },
+                    { key: 'powerMw', label: 'P [mW]' }
+                ]
+                : currentMode === 'T1T2B'
+                ? [
+                    { key: null, label: '#' },
+                    { key: 'r1', label: 'R_T1' },
+                    { key: 'r2', label: 'R_T2' },
+                    { key: 'r3', label: 'R_B' },
+                    { key: 'vout', label: 'V_OUT [V]' },
+                    { key: 'absErr', label: 'Error [mV]' },
+                    { key: 'errPct', label: 'Error [%]' },
+                    { key: 'currentUa', label: 'I [µA]' },
+                    { key: 'powerMw', label: 'P [mW]' }
+                ]
+                : [
+                    { key: null, label: '#' },
+                    { key: 'r1', label: 'R_T' },
+                    { key: 'r2', label: 'R_B1' },
+                    { key: 'r3', label: 'R_B2' },
+                    { key: 'vout', label: 'V_OUT [V]' },
+                    { key: 'absErr', label: 'Error [mV]' },
+                    { key: 'errPct', label: 'Error [%]' },
+                    { key: 'currentUa', label: 'I [µA]' },
+                    { key: 'powerMw', label: 'P [mW]' }
+                ];
+
+            thead.innerHTML = '<tr>' + cols.map(c => {
+                if (!c.key) return `<th>${c.label}</th>`;
+                const arrow = sortState.key === c.key ? (sortState.dir === 1 ? '▲' : '▼') : '';
+                return `<th data-sort="${c.key}">${c.label}<span class="sort-arrow">${arrow}</span></th>`;
+            }).join('') + '</tr>';
+
+            thead.querySelectorAll('th[data-sort]').forEach(th => {
+                th.addEventListener('click', () => {
+                    const key = th.getAttribute('data-sort');
+                    if (sortState.key === key) {
+                        sortState.dir *= -1;
+                    } else {
+                        sortState.key = key;
+                        sortState.dir = 1;
+                    }
+                    sortResults(lastResults);
+                    selectedIndex = lastResults.length > 0 ? 0 : -1;
+                    renderTable();
+                    renderSchematicAndEquations(currentMode, lastResults[selectedIndex] || null);
+                });
+            });
+
+            if (lastResults.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${cols.length}" class="empty-state">No matching resistor combinations found within the specified constraints.</td></tr>`;
+                btnCsv.disabled = true;
+                return;
+            }
+
+            btnCsv.disabled = false;
+            const limitVal = parseInt(document.getElementById('row-limit').value, 10);
+            const displayCount = limitVal > 0 ? Math.min(limitVal, lastResults.length) : lastResults.length;
+
+            const frag = document.createDocumentFragment();
+            for (let i = 0; i < displayCount; i++) {
+                const r = lastResults[i];
+                const tr = document.createElement('tr');
+                if (i === selectedIndex) tr.className = 'selected-row';
+
+                const errMv = r.errV * 1000;
+                const isZero = Math.abs(errMv) < 0.005;
+                const errClass = isZero ? 'err-zero' : (errMv > 0 ? 'err-pos' : 'err-neg');
+                const errMvText = isZero ? '0' : (errMv > 0 ? '+' : '') + formatNum(errMv, 2);
+                const errPctText = Math.abs(r.errPct) < 0.0005 ? '0%' : (r.errPct > 0 ? '+' : '') + formatNum(r.errPct, 3) + '%';
+
+                const rCells = currentMode === 'TB'
+                    ? `<td>${formatResistance(r.r1)}</td><td>${formatResistance(r.r2)}</td>`
+                    : `<td>${formatResistance(r.r1)}</td><td>${formatResistance(r.r2)}</td><td>${formatResistance(r.r3)}</td>`;
+
+                tr.innerHTML = `
+                    <td>${i + 1}</td>
+                    ${rCells}
+                    <td>${formatNum(r.vout, 4)}</td>
+                    <td class="${errClass}">${errMvText}</td>
+                    <td class="${errClass}">${errPctText}</td>
+                    <td>${formatNum(r.currentUa, 2)}</td>
+                    <td>${formatNum(r.powerMw, 3)}</td>
+                `;
+
+                tr.addEventListener('click', () => {
+                    selectedIndex = i;
+                    tbody.querySelectorAll('tr.selected-row').forEach(el => el.classList.remove('selected-row'));
+                    tr.classList.add('selected-row');
+                    renderSchematicAndEquations(currentMode, lastResults[i]);
+                });
+
+                frag.appendChild(tr);
+            }
+
+            tbody.innerHTML = '';
+            tbody.appendChild(frag);
+        }
+
+        function updateShareLink() {
+            const shareLink = document.getElementById('share-link');
+            if (!shareLink) return;
+
+            const baseUrl = 'https://gorniak.eu/calc/voltdiv/';
+
+            const params = new URLSearchParams();
+            params.set('mode', currentMode);
+            params.set('vout', document.getElementById('vout').value.trim());
+            params.set('vref', document.getElementById('vref').value.trim());
+            params.set('err', document.getElementById('maxerr').value.trim());
+            params.set('series', document.getElementById('series').value);
+            if (document.getElementById('series').value !== 'CUSTOM') {
+                params.set('rmin', document.getElementById('rmin').value.trim());
+                params.set('rmax', document.getElementById('rmax').value.trim());
+            }
+
+            const url = baseUrl + '?' + params.toString();
+            shareLink.href = url;
+            shareLink.textContent = url;
+        }
+
+        function calculate() {
+            const voutTarget = parseEngValue(document.getElementById('vout').value);
+            const vref = parseEngValue(document.getElementById('vref').value);
+            const maxErr = parseEngValue(document.getElementById('maxerr').value);
+            const seriesKey = document.getElementById('series').value;
+            const rMin = parseEngValue(document.getElementById('rmin').value);
+            const rMax = parseEngValue(document.getElementById('rmax').value);
+
+            updateShareLink();
+
+            if (!isFinite(voutTarget) || !isFinite(vref) || voutTarget <= 0 || vref <= 0) {
+                lastResults = [];
+                selectedIndex = -1;
+                setStatus('err', 'Enter valid positive values for Vout and Vref.');
+                renderSchematicAndEquations(currentMode, null);
+                renderTable();
+                return;
+            }
+
+            if (voutTarget <= vref) {
+                lastResults = [];
+                selectedIndex = -1;
+                setStatus('err', 'Required Vout must be strictly greater than Vref.');
+                renderSchematicAndEquations(currentMode, null);
+                renderTable();
+                return;
+            }
+
+            if (!isFinite(maxErr) || maxErr < 0) {
+                lastResults = [];
+                selectedIndex = -1;
+                setStatus('err', 'Max output error must be a valid number >= 0.');
+                renderSchematicAndEquations(currentMode, null);
+                renderTable();
+                return;
+            }
+
+            if (seriesKey !== 'CUSTOM' && (!isFinite(rMin) || !isFinite(rMax) || rMin <= 0 || rMax < rMin)) {
+                lastResults = [];
+                selectedIndex = -1;
+                setStatus('err', 'Enter valid resistance limits (0 < Rmin <= Rmax).');
+                renderSchematicAndEquations(currentMode, null);
+                renderTable();
+                return;
+            }
+
+            const candidates = getCandidateResistors(seriesKey, rMin, rMax);
+            if (candidates.length === 0) {
+                lastResults = [];
+                selectedIndex = -1;
+                setStatus('warn', 'No resistor values available in the selected series / range.');
+                renderSchematicAndEquations(currentMode, null);
+                renderTable();
+                return;
+            }
+
+            const t0 = performance.now();
+            if (currentMode === 'TB') {
+                lastResults = solveTB(candidates, voutTarget, vref, maxErr);
+            } else if (currentMode === 'T1T2B') {
+                lastResults = solveT1T2B(candidates, voutTarget, vref, maxErr);
+            } else {
+                lastResults = solveTB1B2(candidates, voutTarget, vref, maxErr);
+            }
+            sortResults(lastResults);
+            const elapsed = (performance.now() - t0).toFixed(1);
+
+            selectedIndex = lastResults.length > 0 ? 0 : -1;
+
+            if (lastResults.length > 0) {
+                const best = lastResults[0];
+                const bestErrMv = formatNum(best.errV * 1000, 2);
+                const bestPct = formatNum(best.errPct, 3);
+                setStatus('ok', `Found ${lastResults.length.toLocaleString()} matches (${candidates.length} values, ${elapsed} ms). Best error: ${bestErrMv} mV (${bestPct}%).`);
+            } else {
+                setStatus('warn', `0 matches within ±${formatNum(maxErr, 4)} V (${candidates.length} values checked). Try increasing Max Error or switching topology.`);
+            }
+
+            renderSchematicAndEquations(currentMode, lastResults[0] || null);
+            renderTable();
+        }
+
+        function exportCSV() {
+            if (lastResults.length === 0) return;
+
+            const voutVal = document.getElementById('vout').value.trim();
+            const vrefVal = document.getElementById('vref').value.trim();
+            const lines = [];
+
+            const topologyLabels = {
+                TB: 'T+B',
+                T1T2B: 'T1+T2+B',
+                TB1B2: 'T+(B1||B2)'
+            };
+
+            lines.push(`Required output voltage;;${voutVal};V`);
+            lines.push(`Reference voltage;;${vrefVal};V`);
+            lines.push(`Topology;;${topologyLabels[currentMode] || currentMode};`);
+            lines.push('');
+
+            if (currentMode === 'TB') {
+                lines.push('R_TOP [Ohm];R_BOT [Ohm];V_OUT [V];ERR [V];ERR [%];I [uA];P [mW]');
+                for (const r of lastResults) {
+                    lines.push(`${r.r1};${r.r2};${r.vout.toFixed(4)};${r.errV.toFixed(4)};${r.errPct.toFixed(4)};${r.currentUa.toFixed(2)};${r.powerMw.toFixed(3)}`);
+                }
+            } else if (currentMode === 'T1T2B') {
+                lines.push('R_TOP1 [Ohm];R_TOP2 [Ohm];R_BOT [Ohm];V_OUT [V];ERR [V];ERR [%];I [uA];P [mW]');
+                for (const r of lastResults) {
+                    lines.push(`${r.r1};${r.r2};${r.r3};${r.vout.toFixed(4)};${r.errV.toFixed(4)};${r.errPct.toFixed(4)};${r.currentUa.toFixed(2)};${r.powerMw.toFixed(3)}`);
+                }
+            } else {
+                lines.push('R_TOP [Ohm];R_BOT1 [Ohm];R_BOT2 [Ohm];V_OUT [V];ERR [V];ERR [%];I [uA];P [mW]');
+                for (const r of lastResults) {
+                    lines.push(`${r.r1};${r.r2};${r.r3};${r.vout.toFixed(4)};${r.errV.toFixed(4)};${r.errPct.toFixed(4)};${r.currentUa.toFixed(2)};${r.powerMw.toFixed(3)}`);
+                }
+            }
+
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+
+            const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `voltdiv_${timestamp}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function setMode(mode) {
+            if (!['TB', 'T1T2B', 'TB1B2'].includes(mode)) mode = 'TB';
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                const isActive = btn.getAttribute('data-mode') === mode;
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            });
+            sortState = { key: 'absErr', dir: 1 };
+            calculate();
+        }
+
+        function updateSeriesUI() {
+            const isCustom = document.getElementById('series').value === 'CUSTOM';
+            document.getElementById('custom-wrap').classList.toggle('visible', isCustom);
+            document.getElementById('rmin-group').style.display = isCustom ? 'none' : '';
+            document.getElementById('rmax-group').style.display = isCustom ? 'none' : '';
+        }
+
+        function loadFromQueryParams() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('vout')) document.getElementById('vout').value = params.get('vout');
+            if (params.has('vref')) document.getElementById('vref').value = params.get('vref');
+            if (params.has('err')) document.getElementById('maxerr').value = params.get('err');
+            if (params.has('series')) {
+                const s = params.get('series');
+                const sel = document.getElementById('series');
+                if (Array.from(sel.options).some(o => o.value === s)) sel.value = s;
+            }
+            if (params.has('rmin')) document.getElementById('rmin').value = params.get('rmin');
+            if (params.has('rmax')) document.getElementById('rmax').value = params.get('rmax');
+            updateSeriesUI();
+            setMode(params.get('mode') || DEFAULTS.mode);
+        }
+
+        function setupEvents() {
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => setMode(btn.getAttribute('data-mode')));
+            });
+
+            ['vout', 'vref', 'maxerr', 'rmin', 'rmax', 'custom-values'].forEach(id => {
+                document.getElementById(id).addEventListener('input', calculate);
+            });
+
+            document.getElementById('series').addEventListener('change', () => {
+                updateSeriesUI();
+                calculate();
+            });
+
+            document.getElementById('row-limit').addEventListener('change', renderTable);
+            document.getElementById('btn-csv').addEventListener('click', exportCSV);
+
+            document.getElementById('btn-reset').addEventListener('click', () => {
+                document.getElementById('vout').value = DEFAULTS.vout;
+                document.getElementById('vref').value = DEFAULTS.vref;
+                document.getElementById('maxerr').value = DEFAULTS.maxerr;
+                document.getElementById('series').value = DEFAULTS.series;
+                document.getElementById('rmin').value = DEFAULTS.rmin;
+                document.getElementById('rmax').value = DEFAULTS.rmax;
+                updateSeriesUI();
+                setMode(DEFAULTS.mode);
+            });
+
+            const copyLink = document.getElementById('copy-share-link');
+            const shareLink = document.getElementById('share-link');
+            copyLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (!shareLink.href) return;
+                navigator.clipboard.writeText(shareLink.href).then(() => {
+                    const orig = copyLink.textContent;
+                    copyLink.textContent = '(copied!)';
+                    copyLink.style.color = '#1e7e43';
+                    setTimeout(() => {
+                        copyLink.textContent = orig;
+                        copyLink.style.color = '';
+                    }, 2000);
+                }).catch(() => {});
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEvents();
+            loadFromQueryParams();
+        });
+    </script>
+</body>
+</html>
